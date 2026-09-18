@@ -5,28 +5,125 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>To-Do List</title>
     <style>
-        body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
-        form { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
-        input[type="text"] { flex: 1 1 12rem; padding: .5rem; }
-        ul { list-style: none; padding: 0; }
-        li { display: flex; align-items: center; gap: .5rem; padding: .4rem 0; border-bottom: 1px solid #e5e5e5; }
-        li span { flex: 1; }
-        .done { text-decoration: line-through; color: #888; }
-        #error { color: #b00020; }
+        :root {
+            --bg: #f5f6fa;
+            --card: #ffffff;
+            --accent: #4f46e5;
+            --accent-light: #eef2ff;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --danger: #dc2626;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            max-width: 640px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background: var(--bg);
+            color: var(--text);
+        }
+        h1 { font-size: 1.6rem; margin-bottom: .25rem; }
+        .subtitle { color: var(--muted); margin: 0 0 1.25rem; font-size: .9rem; }
+
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,.06);
+            margin-bottom: 1rem;
+        }
+
+        .stats { display: flex; gap: 1.5rem; margin-bottom: 1rem; }
+        .stat { flex: 1; text-align: center; }
+        .stat .num { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+        .stat .label { font-size: .78rem; color: var(--muted); }
+
+        form { display: flex; gap: .5rem; flex-wrap: wrap; }
+        input[type="text"] {
+            flex: 1 1 12rem;
+            padding: .6rem .75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: .95rem;
+        }
+        input[type="text"]:focus { outline: 2px solid var(--accent); border-color: transparent; }
+        button {
+            border: none;
+            border-radius: 8px;
+            padding: .6rem 1rem;
+            font-size: .9rem;
+            cursor: pointer;
+        }
+        form button { background: var(--accent); color: #fff; }
+        form button:hover { background: #4338ca; }
+
+        .tabs { display: flex; gap: .4rem; margin: 1rem 0 .75rem; }
+        .tab {
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: .4rem .9rem;
+            border-radius: 999px;
+            font-size: .85rem;
+        }
+        .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+        ul { list-style: none; padding: 0; margin: 0; }
+        li {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+            padding: .7rem .5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        li:last-child { border-bottom: none; }
+        li span.text { flex: 1; font-size: .95rem; }
+        .done { text-decoration: line-through; color: var(--muted); }
+        li button { background: var(--accent-light); color: var(--accent); }
+        li button:hover { background: #e0e7ff; }
+        li button.delete { background: #fee2e2; color: var(--danger); }
+        li button.delete:hover { background: #fecaca; }
+
+        #empty { text-align: center; color: var(--muted); padding: 2rem 0; font-size: .9rem; }
+        #error { color: var(--danger); background: #fee2e2; padding: .6rem .8rem; border-radius: 8px; margin-top: .75rem; }
     </style>
 </head>
 <body>
     <h1>To-Do List</h1>
-    <form id="todo-form">
-        <input type="text" id="title" placeholder="제목 (예: 20231234)" required>
-        <input type="text" id="description" placeholder="설명 (예: 홍길동)">
-        <button type="submit">Add To-Do</button>
-    </form>
-    <p id="error" role="alert" hidden></p>
-    <ul id="todo-list"></ul>
+    <p class="subtitle">오늘 할 일을 관리하세요</p>
+
+    <div class="card">
+        <div class="stats">
+            <div class="stat"><div class="num" id="stat-total">0</div><div class="label">전체</div></div>
+            <div class="stat"><div class="num" id="stat-active">0</div><div class="label">진행중</div></div>
+            <div class="stat"><div class="num" id="stat-done">0</div><div class="label">완료</div></div>
+        </div>
+        <form id="todo-form">
+            <input type="text" id="title" placeholder="제목 (예: 20231234)" required>
+            <input type="text" id="description" placeholder="설명 (예: 홍길동)">
+            <button type="submit">Add To-Do</button>
+        </form>
+        <p id="error" role="alert" hidden></p>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" data-filter="all">전체</button>
+        <button class="tab" data-filter="active">진행중</button>
+        <button class="tab" data-filter="done">완료</button>
+    </div>
+
+    <div class="card">
+        <ul id="todo-list"></ul>
+        <p id="empty" hidden>표시할 항목이 없습니다.</p>
+    </div>
+
     <script>
         const $ = (id) => document.getElementById(id);
-        const listEl = $("todo-list"), errorEl = $("error");
+        const listEl = $("todo-list"), errorEl = $("error"), emptyEl = $("empty");
+        let allTodos = [];
+        let filter = "all";
 
         // 모든 요청을 한 곳에서 처리하고, 실패는 조용히 넘기지 않는다
         async function api(url, method = "GET", body) {
@@ -48,14 +145,30 @@
           }
         }
 
-        const load = () => run("목록 불러오기", async () => render(await api("/todos")));
+        const load = () => run("목록 불러오기", async () => { allTodos = await api("/todos"); render(); });
         const save = (id, todo) => run("수정", async () => { await api(`/todos/${id}`, "PUT", todo); await load(); });
 
-        function button(label, onclick) {
-          return Object.assign(document.createElement("button"), { textContent: label, onclick });
+        function button(label, onclick, className) {
+          return Object.assign(document.createElement("button"), { textContent: label, onclick, className: className || "" });
         }
 
-        function render(todos) {
+        function updateStats() {
+          const done = allTodos.filter((t) => t.completed).length;
+          $("stat-total").textContent = allTodos.length;
+          $("stat-done").textContent = done;
+          $("stat-active").textContent = allTodos.length - done;
+        }
+
+        function visibleTodos() {
+          if (filter === "active") return allTodos.filter((t) => !t.completed);
+          if (filter === "done") return allTodos.filter((t) => t.completed);
+          return allTodos;
+        }
+
+        function render() {
+          updateStats();
+          const todos = visibleTodos();
+          emptyEl.hidden = todos.length !== 0;
           listEl.replaceChildren(...todos.map((todo) => {
             const check = Object.assign(document.createElement("input"), {
               type: "checkbox",
@@ -64,10 +177,10 @@
             });
             const text = Object.assign(document.createElement("span"), {
               textContent: `${todo.title} — ${todo.description}`,
-              className: todo.completed ? "done" : "",
+              className: "text" + (todo.completed ? " done" : ""),
             });
             const li = document.createElement("li");
-            li.append(check, text, button("Edit", () => edit(todo)), button("Delete", () => remove(todo.id)));
+            li.append(check, text, button("Edit", () => edit(todo)), button("Delete", () => remove(todo.id), "delete"));
             return li;
           }));
         }
@@ -84,6 +197,15 @@
           if (!confirm("정말 삭제할까요?")) return;
           run("삭제", async () => { await api(`/todos/${id}`, "DELETE"); await load(); });
         }
+
+        document.querySelectorAll(".tab").forEach((tab) => {
+          tab.onclick = () => {
+            document.querySelector(".tab.active").classList.remove("active");
+            tab.classList.add("active");
+            filter = tab.dataset.filter;
+            render();
+          };
+        });
 
         $("todo-form").onsubmit = (event) => {
           event.preventDefault();
