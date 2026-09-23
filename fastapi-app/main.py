@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field
 BASE_DIR = Path(__file__).resolve().parent
 TODO_FILE = BASE_DIR / "todo.json"
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-app = FastAPI(title="Todo List")
+APP_VERSION = "3.0.0"
+app = FastAPI(title="Todo List", version=APP_VERSION)
 
 
 class TodoIn(BaseModel):
@@ -45,7 +46,7 @@ def write_todos(todos: list[dict]) -> None:
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    return templates.TemplateResponse(request=request, name="index.html")
+    return templates.TemplateResponse(request=request, name="index.html", context={"version": APP_VERSION})
 
 
 @app.get("/todos", response_model=list[TodoItem])

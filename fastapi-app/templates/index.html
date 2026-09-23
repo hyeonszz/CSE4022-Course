@@ -41,14 +41,14 @@
         .stat .label { font-size: .78rem; color: var(--muted); }
 
         form { display: flex; gap: .5rem; flex-wrap: wrap; }
-        input[type="text"] {
+        input[type="text"], input[type="search"] {
             flex: 1 1 12rem;
             padding: .6rem .75rem;
             border: 1px solid var(--border);
             border-radius: 8px;
             font-size: .95rem;
         }
-        input[type="text"]:focus { outline: 2px solid var(--accent); border-color: transparent; }
+        input[type="text"]:focus, input[type="search"]:focus { outline: 2px solid var(--accent); border-color: transparent; }
         button {
             border: none;
             border-radius: 8px;
@@ -59,7 +59,10 @@
         form button { background: var(--accent); color: #fff; }
         form button:hover { background: #4338ca; }
 
-        .tabs { display: flex; gap: .4rem; margin: 1rem 0 .75rem; }
+        .toolbar { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; margin: 1rem 0 .75rem; }
+        .toolbar input[type="search"] { flex: 1 1 10rem; }
+        .tabs { display: flex; gap: .4rem; }
+        .version { color: var(--muted); font-size: .75rem; text-align: center; margin-top: 1.5rem; }
         .tab {
             background: var(--card);
             border: 1px solid var(--border);
@@ -108,16 +111,21 @@
         <p id="error" role="alert" hidden></p>
     </div>
 
-    <div class="tabs">
-        <button class="tab active" data-filter="all">전체</button>
-        <button class="tab" data-filter="active">진행중</button>
-        <button class="tab" data-filter="done">완료</button>
+    <div class="toolbar">
+        <div class="tabs">
+            <button class="tab active" data-filter="all">전체</button>
+            <button class="tab" data-filter="active">진행중</button>
+            <button class="tab" data-filter="done">완료</button>
+        </div>
+        <input type="search" id="search" placeholder="제목·설명 검색">
     </div>
 
     <div class="card">
         <ul id="todo-list"></ul>
         <p id="empty" hidden>표시할 항목이 없습니다.</p>
     </div>
+
+    <p class="version">v{{ version }}</p>
 
     <script>
         const $ = (id) => document.getElementById(id);
@@ -160,9 +168,12 @@
         }
 
         function visibleTodos() {
-          if (filter === "active") return allTodos.filter((t) => !t.completed);
-          if (filter === "done") return allTodos.filter((t) => t.completed);
-          return allTodos;
+          const query = $("search").value.trim().toLowerCase();
+          return allTodos.filter((t) => {
+            if (filter === "active" && t.completed) return false;
+            if (filter === "done" && !t.completed) return false;
+            return !query || `${t.title} ${t.description}`.toLowerCase().includes(query);
+          });
         }
 
         function render() {
@@ -206,6 +217,8 @@
             render();
           };
         });
+
+        $("search").oninput = render;
 
         $("todo-form").onsubmit = (event) => {
           event.preventDefault();
