@@ -1,0 +1,65 @@
+// 6-1. GitHub 레포를 배포 서버에 clone/갱신한 뒤 docker compose로 배포 (포트 5001)
+pipeline {
+    agent any
+
+    environment {
+        REMOTE_USER  = 'sogang009'                   // 배포하려는 틸론ID
+        REMOTE_HOST  = '163.239.77.82'               // 배포하려는 IP 주소
+        REMOTE_PATH  = '/home/sogang009@SGVDI.local' // 배포 서버에서 echo $HOME 결과
+        REPO_URL     = 'https://github.com/hyeonszz/CSE4022-Course.git'
+        BRANCH_NAME  = 'main'
+        REPO_DIR     = 'CSE4022-Course-deploy'       // 배포 전용 폴더 (서버의 작업 폴더와 겹치면 안 됨)
+        APP_DIR      = '.'                           // docker-compose.yml이 레포 최상위에 있음
+        NOTIFY_EMAIL = 'your-email@example.com'      // TODO: 빌드 실패 알림 받을 이메일
+    }
+
+    options {
+        timeout(time: 15, unit: 'MINUTES')          // 멈춘 빌드 자동 종료
+        disableConcurrentBuilds()                   // 동시에 두 번 배포되는 것 방지
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git url: "${REPO_URL}", branch: "${BRANCH_NAME}"
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sshagent(credentials: ['admin']) {
+                    sh '''
+ssh ${REMOTE_USER}@${REMOTE_HOST} \
+  "REMOTE_PATH='${REMOTE_PATH}' REPO_URL='${REPO_URL}' BRANCH_NAME='${BRANCH_NAME}' REPO_DIR='${REPO_DIR}' APP_DIR='${APP_DIR}' bash -se" <<'ENDSSH'
+set -euo pipefail
+cd "$REMOTE_PATH"
+
+# 1. 최초 1회는 clone, 이후에는 최신 커밋으로 갱신
+if [ -d "$REPO_DIR/.git" ]; then
+  git -C "$REPO_DIR" fetch --prune origin
+  git -C "$REPO_DIR" checkout "$BRANCH_NAME"
+  git -C "$REPO_DIR" reset --hard "origin/$BRANCH_NAME"
+else
+  git clone --branch "$BRANCH_NAME" "$REPO_URL" "$REPO_DIR"
+fi
+
+# 2. Docker Compose 배포 (포그라운드 실행 → 실패하면 Jenkins 빌드도 실패)
+cd "$REPO_DIR/$APP_DIR"
+docker compose up -d --build --remove-orphans
+docker compose ps
+ENDSSH
+'''
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            // Jenkins 관리 → System → E-mail Notification(SMTP) 설정 필요
+            mail to: "${NOTIFY_EMAIL}",
+                 subject: "[Jenkins] 빌드 실패: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 body: "빌드가 실패했습니다.\n\nJob: ${env.JOB_NAME}\nBuild: #${env.BUILD_NUMBER}\nConsole: ${env.BUILD_URL}console"
+        }
+    }
+}
