@@ -5,3 +5,6 @@ __pycache__/
 # Claude Code local files (never push)
 .claude/
 CLAUDE.md
+
+# Jenkins pipeline scripts contain server IP/account/email - keep local only
+jenkins/
