@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 BASE_DIR = Path(__file__).resolve().parent
 TODO_FILE = BASE_DIR / "todo.json"
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-APP_VERSION = "3.0.0"
+APP_VERSION = "4.0.0"
 app = FastAPI(title="Todo List", version=APP_VERSION)
 
 
@@ -75,6 +75,25 @@ def update_todo(todo_id: int, todo: TodoIn):
             write_todos(todos)
             return updated_todo
     raise HTTPException(status_code=404, detail="할 일을 찾을 수 없습니다.")
+
+
+@app.patch("/todos/complete-all")
+def complete_all_todos():
+    todos = read_todos()
+    updated_count = sum(1 for item in todos if not item.get("completed", False))
+    for item in todos:
+        item["completed"] = True
+    write_todos(todos)
+    return {"updated": updated_count}
+
+
+@app.delete("/todos/completed")
+def delete_completed_todos():
+    todos = read_todos()
+    remaining_todos = [item for item in todos if not item.get("completed", False)]
+    deleted_count = len(todos) - len(remaining_todos)
+    write_todos(remaining_todos)
+    return {"deleted": deleted_count}
 
 
 @app.delete("/todos/{todo_id}", status_code=status.HTTP_204_NO_CONTENT)

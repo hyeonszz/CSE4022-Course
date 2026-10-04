@@ -72,6 +72,8 @@
             font-size: .85rem;
         }
         .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+        #clear-completed { background: #fee2e2; color: var(--danger); white-space: nowrap; }
+        #clear-completed:hover { background: #fecaca; }
 
         ul { list-style: none; padding: 0; margin: 0; }
         li {
@@ -118,6 +120,8 @@
             <button class="tab" data-filter="done">완료</button>
         </div>
         <input type="search" id="search" placeholder="제목·설명 검색">
+        <button id="complete-all" type="button">전체 완료</button>
+        <button id="clear-completed" type="button">완료 항목 삭제</button>
     </div>
 
     <div class="card">
@@ -209,6 +213,15 @@
           run("삭제", async () => { await api(`/todos/${id}`, "DELETE"); await load(); });
         }
 
+        function clearCompleted() {
+          if (!confirm("완료된 항목을 모두 삭제할까요?")) return;
+          run("완료 항목 삭제", async () => { await api("/todos/completed", "DELETE"); await load(); });
+        }
+
+        function completeAll() {
+          run("전체 완료 처리", async () => { await api("/todos/complete-all", "PATCH"); await load(); });
+        }
+
         document.querySelectorAll(".tab").forEach((tab) => {
           tab.onclick = () => {
             document.querySelector(".tab.active").classList.remove("active");
@@ -219,6 +232,8 @@
         });
 
         $("search").oninput = render;
+        $("clear-completed").onclick = clearCompleted;
+        $("complete-all").onclick = completeAll;
 
         $("todo-form").onsubmit = (event) => {
           event.preventDefault();

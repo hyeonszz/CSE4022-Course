@@ -77,3 +77,42 @@ def test_delete_todo():
 def test_delete_todo_not_found():
     response = client.delete("/todos/1")
     assert response.status_code == 404
+
+
+def test_delete_completed_todos():
+    done = TodoItem(id=1, title="Done", description="", completed=True)
+    active = TodoItem(id=2, title="Active", description="", completed=False)
+    write_todos([done.model_dump(), active.model_dump()])
+    response = client.delete("/todos/completed")
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 1}
+    remaining = read_todos()
+    assert len(remaining) == 1
+    assert remaining[0]["title"] == "Active"
+
+
+def test_delete_completed_todos_none_completed():
+    active = TodoItem(id=1, title="Active", description="", completed=False)
+    write_todos([active.model_dump()])
+    response = client.delete("/todos/completed")
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 0}
+    assert len(read_todos()) == 1
+
+
+def test_complete_all_todos():
+    done = TodoItem(id=1, title="Done", description="", completed=True)
+    active = TodoItem(id=2, title="Active", description="", completed=False)
+    write_todos([done.model_dump(), active.model_dump()])
+    response = client.patch("/todos/complete-all")
+    assert response.status_code == 200
+    assert response.json() == {"updated": 1}
+    assert all(item["completed"] for item in read_todos())
+
+
+def test_complete_all_todos_already_done():
+    done = TodoItem(id=1, title="Done", description="", completed=True)
+    write_todos([done.model_dump()])
+    response = client.patch("/todos/complete-all")
+    assert response.status_code == 200
+    assert response.json() == {"updated": 0}
