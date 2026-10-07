@@ -8,12 +8,11 @@ client = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
-def setup_and_teardown(tmp_path, monkeypatch):
+def use_temp_todo_file(tmp_path, monkeypatch):
     # 실제 todo.json 대신 테스트마다 새 임시 파일 사용 (본인 데이터 보호 + 테스트 간 격리)
+    # 정리는 tmp_path 와 monkeypatch 가 자동으로 해주므로 teardown 코드 불필요
     monkeypatch.setattr(main, "TODO_FILE", tmp_path / "todo.json")
-    write_todos([])  # 테스트 전 초기화
-    yield
-    # 테스트 후 정리: tmp_path 와 monkeypatch 가 자동으로 원상 복구
+    write_todos([])
 
 
 def test_home_page():

@@ -7,3 +7,11 @@ venv/
 .env
 Dockerfile
 .dockerignore
+
+# 런타임에 불필요한 테스트/분석 산출물 - 이미지에 포함시키지 않음 (SonarQube S6504 대응)
+tests/
+tests_integration/
+coverage.xml
+htmlcov/
+sonar-project.properties
+.claude/

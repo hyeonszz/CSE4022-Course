@@ -49,13 +49,22 @@ def home(request: Request):
     return templates.TemplateResponse(request=request, name="index.html", context={"version": APP_VERSION})
 
 
-@app.get("/todos", response_model=list[TodoItem])
+TODO_FILE_ERROR_RESPONSE = {500: {"description": "todo.json 파일이 손상되어 읽을 수 없는 경우"}}
+TODO_NOT_FOUND_RESPONSE = {404: {"description": "해당 id의 할 일을 찾을 수 없는 경우"}}
+
+
+@app.get("/todos", response_model=list[TodoItem], responses=TODO_FILE_ERROR_RESPONSE)
 def list_todos():
     # 이전 버전의 데이터에 description이 없어도 화면에서 정상 표시한다.
     return [{"description": "", **item} for item in read_todos()]
 
 
-@app.post("/todos", response_model=TodoItem, status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/todos",
+    response_model=TodoItem,
+    status_code=status.HTTP_201_CREATED,
+    responses=TODO_FILE_ERROR_RESPONSE,
+)
 def create_todo(todo: TodoIn):
     todos = read_todos()
     next_id = max((item.get("id", 0) for item in todos), default=0) + 1
@@ -65,7 +74,11 @@ def create_todo(todo: TodoIn):
     return new_todo
 
 
-@app.put("/todos/{todo_id}", response_model=TodoItem)
+@app.put(
+    "/todos/{todo_id}",
+    response_model=TodoItem,
+    responses={**TODO_NOT_FOUND_RESPONSE, **TODO_FILE_ERROR_RESPONSE},
+)
 def update_todo(todo_id: int, todo: TodoIn):
     todos = read_todos()
     for index, item in enumerate(todos):
@@ -77,7 +90,7 @@ def update_todo(todo_id: int, todo: TodoIn):
     raise HTTPException(status_code=404, detail="할 일을 찾을 수 없습니다.")
 
 
-@app.patch("/todos/complete-all")
+@app.patch("/todos/complete-all", responses=TODO_FILE_ERROR_RESPONSE)
 def complete_all_todos():
     todos = read_todos()
     updated_count = sum(1 for item in todos if not item.get("completed", False))
@@ -87,7 +100,7 @@ def complete_all_todos():
     return {"updated": updated_count}
 
 
-@app.delete("/todos/completed")
+@app.delete("/todos/completed", responses=TODO_FILE_ERROR_RESPONSE)
 def delete_completed_todos():
     todos = read_todos()
     remaining_todos = [item for item in todos if not item.get("completed", False)]
@@ -96,7 +109,11 @@ def delete_completed_todos():
     return {"deleted": deleted_count}
 
 
-@app.delete("/todos/{todo_id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete(
+    "/todos/{todo_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={**TODO_NOT_FOUND_RESPONSE, **TODO_FILE_ERROR_RESPONSE},
+)
 def delete_todo(todo_id: int):
     todos = read_todos()
     remaining_todos = [item for item in todos if item.get("id") != todo_id]
