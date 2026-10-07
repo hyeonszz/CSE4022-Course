@@ -49,11 +49,11 @@ def home(request: Request):
     return templates.TemplateResponse(request=request, name="index.html", context={"version": APP_VERSION})
 
 
-TODO_FILE_ERROR_RESPONSE = {500: {"description": "todo.json 파일이 손상되어 읽을 수 없는 경우"}}
-TODO_NOT_FOUND_RESPONSE = {404: {"description": "해당 id의 할 일을 찾을 수 없는 경우"}}
-
-
-@app.get("/todos", response_model=list[TodoItem], responses=TODO_FILE_ERROR_RESPONSE)
+@app.get(
+    "/todos",
+    response_model=list[TodoItem],
+    responses={500: {"description": "todo.json 파일이 손상되어 읽을 수 없는 경우"}},
+)
 def list_todos():
     # 이전 버전의 데이터에 description이 없어도 화면에서 정상 표시한다.
     return [{"description": "", **item} for item in read_todos()]
@@ -63,7 +63,7 @@ def list_todos():
     "/todos",
     response_model=TodoItem,
     status_code=status.HTTP_201_CREATED,
-    responses=TODO_FILE_ERROR_RESPONSE,
+    responses={500: {"description": "todo.json 파일이 손상되어 읽을 수 없는 경우"}},
 )
 def create_todo(todo: TodoIn):
     todos = read_todos()
@@ -77,7 +77,10 @@ def create_todo(todo: TodoIn):
 @app.put(
     "/todos/{todo_id}",
     response_model=TodoItem,
-    responses={**TODO_NOT_FOUND_RESPONSE, **TODO_FILE_ERROR_RESPONSE},
+    responses={
+        404: {"description": "해당 id의 할 일을 찾을 수 없는 경우"},
+        500: {"description": "todo.json 파일이 손상되어 읽을 수 없는 경우"},
+    },
 )
 def update_todo(todo_id: int, todo: TodoIn):
     todos = read_todos()
@@ -90,7 +93,10 @@ def update_todo(todo_id: int, todo: TodoIn):
     raise HTTPException(status_code=404, detail="할 일을 찾을 수 없습니다.")
 
 
-@app.patch("/todos/complete-all", responses=TODO_FILE_ERROR_RESPONSE)
+@app.patch(
+    "/todos/complete-all",
+    responses={500: {"description": "todo.json 파일이 손상되어 읽을 수 없는 경우"}},
+)
 def complete_all_todos():
     todos = read_todos()
     updated_count = sum(1 for item in todos if not item.get("completed", False))
@@ -100,7 +106,10 @@ def complete_all_todos():
     return {"updated": updated_count}
 
 
-@app.delete("/todos/completed", responses=TODO_FILE_ERROR_RESPONSE)
+@app.delete(
+    "/todos/completed",
+    responses={500: {"description": "todo.json 파일이 손상되어 읽을 수 없는 경우"}},
+)
 def delete_completed_todos():
     todos = read_todos()
     remaining_todos = [item for item in todos if not item.get("completed", False)]
@@ -112,7 +121,10 @@ def delete_completed_todos():
 @app.delete(
     "/todos/{todo_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={**TODO_NOT_FOUND_RESPONSE, **TODO_FILE_ERROR_RESPONSE},
+    responses={
+        404: {"description": "해당 id의 할 일을 찾을 수 없는 경우"},
+        500: {"description": "todo.json 파일이 손상되어 읽을 수 없는 경우"},
+    },
 )
 def delete_todo(todo_id: int):
     todos = read_todos()
