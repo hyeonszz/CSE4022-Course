@@ -4,14 +4,18 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from prometheus_fastapi_instrumentator import Instrumentator  # 추가
 from pydantic import BaseModel, Field
 
 
 BASE_DIR = Path(__file__).resolve().parent
 TODO_FILE = BASE_DIR / "todo.json"
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-APP_VERSION = "5.0.0"
+APP_VERSION = "6.0.0"
 app = FastAPI(title="Todo List", version=APP_VERSION)
+
+# Prometheus 메트릭 엔드포인트(/metrics): 요청 수·응답 시간 등을 자동 수집
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 
 class TodoIn(BaseModel):
