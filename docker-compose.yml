@@ -73,6 +73,19 @@ services:
       - ALL
     # ports 없음: Prometheus가 내부 네트워크(node-exporter:9100)로 수집
 
+  cadvisor:
+    image: ghcr.io/google/cadvisor:v0.60.6      # 버전 고정 (v0.53.0부터 이미지 위치가 ghcr.io)
+    container_name: cadvisor
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    # ports 없음: Prometheus가 내부 네트워크(cadvisor:8080)로 수집 (화면에 로그인 기능이 없음)
+    volumes:                                    # 컨테이너 정보를 읽기 위한 호스트 경로 (모두 읽기 전용)
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+
 volumes:
   sonarqube_data:
   sonarqube_extensions:
