@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
@@ -22,6 +23,7 @@ class TodoIn(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(default="", max_length=500)
     completed: bool = False
+    priority: Literal["high", "normal", "low"] = "normal"
 
 
 class TodoItem(TodoIn):
@@ -59,8 +61,8 @@ def home(request: Request):
     responses={500: {"description": "todo.json 파일이 손상되어 읽을 수 없는 경우"}},
 )
 def list_todos():
-    # 이전 버전의 데이터에 description이 없어도 화면에서 정상 표시한다.
-    return [{"description": "", **item} for item in read_todos()]
+    # 이전 버전의 데이터에 description·priority가 없어도 화면에서 정상 표시한다.
+    return [{"description": "", "priority": "normal", **item} for item in read_todos()]
 
 
 @app.post(

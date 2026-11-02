@@ -115,3 +115,35 @@ def test_complete_all_todos_already_done():
     response = client.patch("/todos/complete-all")
     assert response.status_code == 200
     assert response.json() == {"updated": 0}
+
+
+def test_create_todo_default_priority():
+    response = client.post("/todos", json={"title": "Test"})
+    assert response.status_code == 201
+    assert response.json()["priority"] == "normal"
+
+
+def test_create_todo_with_priority():
+    response = client.post("/todos", json={"title": "Test", "priority": "high"})
+    assert response.status_code == 201
+    assert response.json()["priority"] == "high"
+    assert read_todos()[0]["priority"] == "high"
+
+
+def test_create_todo_invalid_priority():
+    response = client.post("/todos", json={"title": "Test", "priority": "urgent"})
+    assert response.status_code == 422
+
+
+def test_update_todo_priority():
+    client.post("/todos", json={"title": "Test"})
+    response = client.put("/todos/1", json={"title": "Test", "priority": "low"})
+    assert response.status_code == 200
+    assert response.json()["priority"] == "low"
+
+
+def test_get_todos_without_priority_defaults_to_normal():
+    write_todos([{"id": 1, "title": "옛 데이터", "completed": False}])    # priority 없는 이전 버전 데이터
+    response = client.get("/todos")
+    assert response.json()[0]["priority"] == "normal"
+

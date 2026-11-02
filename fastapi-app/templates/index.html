@@ -119,6 +119,18 @@
         li button.delete { background: var(--danger-bg); color: var(--danger); }
         li button.delete:hover { background: var(--danger-bg-hover); }
 
+        .priority { padding: .2rem .6rem; font-size: .75rem; border-radius: 999px; white-space: nowrap; }
+        li button.priority.high { background: var(--danger-bg); color: var(--danger); }
+        li button.priority.low { background: var(--card); color: var(--muted); border: 1px solid var(--border); }
+        select {
+            padding: .6rem .5rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card);
+            color: inherit;
+            font-size: .95rem;
+        }
+
         #empty { text-align: center; color: var(--muted); padding: 2rem 0; font-size: .9rem; }
         #error { color: var(--danger); background: var(--danger-bg); padding: .6rem .8rem; border-radius: 8px; margin-top: .75rem; }
     </style>
@@ -149,6 +161,11 @@
         <form id="todo-form">
             <input type="text" id="title" placeholder="제목 (예: 20231234)" required>
             <input type="text" id="description" placeholder="설명 (예: 홍길동)">
+            <select id="priority" aria-label="우선순위">
+                <option value="high">높음</option>
+                <option value="normal" selected>보통</option>
+                <option value="low">낮음</option>
+            </select>
             <button type="submit">Add To-Do</button>
         </form>
         <p id="error" role="alert" hidden></p>
@@ -177,6 +194,9 @@
         const listEl = $("todo-list"), errorEl = $("error"), emptyEl = $("empty");
         let allTodos = [];
         let filter = "all";
+        const PRIORITY_LABEL = { high: "높음", normal: "보통", low: "낮음" };
+        const PRIORITY_ORDER = { high: 0, normal: 1, low: 2 };
+        const NEXT_PRIORITY = { high: "normal", normal: "low", low: "high" };   // 뱃지 클릭 시 순환
 
         // 모든 요청을 한 곳에서 처리하고, 실패는 조용히 넘기지 않는다
         async function api(url, method = "GET", body) {
@@ -218,7 +238,7 @@
             if (filter === "active" && t.completed) return false;
             if (filter === "done" && !t.completed) return false;
             return !query || `${t.title} ${t.description}`.toLowerCase().includes(query);
-          });
+          }).sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);   // 우선순위 높은 순 (같으면 기존 순서)
         }
 
         function render() {
@@ -236,7 +256,9 @@
               className: "text" + (todo.completed ? " done" : ""),
             });
             const li = document.createElement("li");
-            li.append(check, text, button("Edit", () => edit(todo)), button("Delete", () => remove(todo.id), "delete"));
+            const badge = button(PRIORITY_LABEL[todo.priority], () => save(todo.id, { ...todo, priority: NEXT_PRIORITY[todo.priority] }), `priority ${todo.priority}`);
+            badge.title = "클릭하면 우선순위가 바뀝니다";
+            li.append(check, badge, text, button("Edit", () => edit(todo)), button("Delete", () => remove(todo.id), "delete"));
             return li;
           }));
         }
@@ -291,7 +313,7 @@
         $("todo-form").onsubmit = (event) => {
           event.preventDefault();
           run("추가", async () => {
-            await api("/todos", "POST", { title: $("title").value.trim(), description: $("description").value.trim() });
+            await api("/todos", "POST", { title: $("title").value.trim(), description: $("description").value.trim(), priority: $("priority").value });
             event.target.reset();
             await load();
           });
