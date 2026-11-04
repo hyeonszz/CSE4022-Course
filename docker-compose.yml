@@ -37,6 +37,20 @@ services:
       - -o
       - /jmeter/report
 
+  influxdb:
+    image: influxdb:1.8.10                      # JMeter Backend Listener(v1 write API)용 시계열 DB, 버전 고정
+    container_name: influxdb
+    restart: unless-stopped
+    environment:
+      - INFLUXDB_DB=jmeter                      # 시작 시 jmeter DB 자동 생성
+      - INFLUXDB_HTTP_LOG_ENABLED=false
+    ports:
+      # 인증 없는 DB 라서 외부 노출 금지. docker0 브릿지(172.17.0.1)에만 열어
+      # Jenkins 가 띄우는 JMeter 컨테이너는 접근하고, 외부 네트워크는 막는다. (Grafana 는 compose 내부에서 influxdb:8086 로 접근)
+      - "172.17.0.1:8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb
+
   sonarqube:
     image: sonarqube:26.9.0.129388-community
     container_name: sonarqube
@@ -117,3 +131,4 @@ volumes:
   sonarqube_temp:
   prometheus-data:
   grafana-data:
+  influxdb-data:
