@@ -13,6 +13,30 @@ services:
     cap_drop:
       - ALL                       # 불필요한 커널 권한 모두 제거
 
+  jmeter:
+    build:
+      context: ./jmeter
+      dockerfile: Dockerfile
+    container_name: jmeter
+    profiles: ["loadtest"]                      # 평소 up 에는 뜨지 않음: docker compose --profile loadtest run --rm jmeter
+    depends_on:
+      - fastapi-app
+    volumes:
+      - ./jmeter:/jmeter
+    command:
+      - jmeter
+      - -n
+      - -t
+      - /jmeter/fastapi_test_plan.jmx
+      - -l
+      - /jmeter/results.jtl
+      - -JTARGET_HOST=fastapi-app
+      - -JTARGET_PORT=8000
+      - -Jjmeter.save.saveservice.output_format=csv
+      - -e
+      - -o
+      - /jmeter/report
+
   sonarqube:
     image: sonarqube:26.9.0.129388-community
     container_name: sonarqube

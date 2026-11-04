@@ -8,3 +8,7 @@ CLAUDE.md
 
 # Jenkins pipeline scripts contain server IP/account/email - keep local only
 jenkins/
+# JMeter 실행 결과물
+jmeter/results.jtl
+jmeter/report/
+jmeter/jmeter.log
