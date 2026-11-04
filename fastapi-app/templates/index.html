@@ -90,6 +90,9 @@
         .toolbar { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; margin: 1rem 0 .75rem; }
         .toolbar input[type="search"] { flex: 1 1 10rem; }
         .tabs { display: flex; gap: .4rem; }
+        .progress { height: 8px; border-radius: 4px; background: var(--border, #ddd); overflow: hidden; }
+        .progress > div { height: 100%; width: 0; background: #22a06b; transition: width .3s; }
+        .progress-label { color: var(--muted); font-size: .8rem; text-align: right; margin: .25rem 0 .75rem; }
         .version { color: var(--muted); font-size: .75rem; text-align: center; margin-top: 1.5rem; }
         .tab {
             background: var(--card);
@@ -158,6 +161,8 @@
             <div class="stat"><div class="num" id="stat-active">0</div><div class="label">진행중</div></div>
             <div class="stat"><div class="num" id="stat-done">0</div><div class="label">완료</div></div>
         </div>
+        <div class="progress" role="progressbar" aria-label="완료율" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress"><div id="progress-bar"></div></div>
+        <p class="progress-label">완료율 <span id="progress-text">0%</span></p>
         <form id="todo-form">
             <input type="text" id="title" placeholder="제목 (예: 20231234)" required>
             <input type="text" id="description" placeholder="설명 (예: 홍길동)">
@@ -230,6 +235,10 @@
           $("stat-total").textContent = allTodos.length;
           $("stat-done").textContent = done;
           $("stat-active").textContent = allTodos.length - done;
+          const percent = allTodos.length ? Math.round((done / allTodos.length) * 100) : 0;
+          $("progress-bar").style.width = `${percent}%`;
+          $("progress").setAttribute("aria-valuenow", percent);
+          $("progress-text").textContent = `${percent}%`;
         }
 
         function visibleTodos() {

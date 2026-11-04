@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 BASE_DIR = Path(__file__).resolve().parent
 TODO_FILE = BASE_DIR / "todo.json"
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-APP_VERSION = "6.0.0"
+APP_VERSION = "7.0.0"
 app = FastAPI(title="Todo List", version=APP_VERSION)
 
 # Prometheus 메트릭 엔드포인트(/metrics): 요청 수·응답 시간 등을 자동 수집
