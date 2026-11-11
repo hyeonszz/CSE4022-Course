@@ -12,6 +12,8 @@ services:
       - no-new-privileges:true    # 컨테이너 안에서 권한 상승 차단
     cap_drop:
       - ALL                       # 불필요한 커널 권한 모두 제거
+    environment:
+      - PYTHONUNBUFFERED=1        # 로그를 버퍼링 없이 바로 stdout으로 출력 (Alloy가 수집)
 
   jmeter:
     build:
@@ -124,6 +126,34 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
 
+  loki:                                         # 로그 저장소
+    image: grafana/loki:3.7.9                   # 버전 고정
+    container_name: loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml   # 이미지 기본 설정 (TSDB + schema v13)
+    ports:
+      - "127.0.0.1:3100:3100"                   # 외부 노출 금지 (인증 없음)
+    volumes:
+      - loki-data:/loki
+
+  alloy:                                        # 로그 수집기 (Promtail 대체)
+    image: grafana/alloy:v1.21.3                # 버전 고정 (Alloy 태그는 앞에 v가 붙음)
+    container_name: alloy
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    ports:
+      - "127.0.0.1:12345:12345"                 # Alloy UI. 외부 노출 금지 (로그인 기능 없음)
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro   # 컨테이너 목록·로그를 읽는 통로
+      - alloy-data:/var/lib/alloy/data                 # 어디까지 읽었는지(positions) 저장
+    depends_on:
+      - loki
+
 volumes:
   sonarqube_data:
   sonarqube_extensions:
@@ -132,3 +162,5 @@ volumes:
   prometheus-data:
   grafana-data:
   influxdb-data:
+  loki-data:
+  alloy-data:

@@ -12,3 +12,6 @@ jenkins/
 jmeter/results.jtl
 jmeter/report/
 jmeter/jmeter.log
+
+# 환경변수 비밀 값
+.env

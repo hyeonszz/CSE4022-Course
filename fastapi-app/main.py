@@ -1,4 +1,7 @@
 import json
+import logging
+import sys
+import time
 from pathlib import Path
 from typing import Literal
 
@@ -12,11 +15,34 @@ from pydantic import BaseModel, Field
 BASE_DIR = Path(__file__).resolve().parent
 TODO_FILE = BASE_DIR / "todo.json"
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-APP_VERSION = "7.0.0"
+APP_VERSION = "8.0.0"
 app = FastAPI(title="Todo List", version=APP_VERSION)
 
 # Prometheus 메트릭 엔드포인트(/metrics): 요청 수·응답 시간 등을 자동 수집
 Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
+# 액세스 로그를 stdout으로 기록: Docker가 컨테이너 로그로 저장하고 Alloy가 읽어 Loki로 전송
+custom_logger = logging.getLogger("custom.access")
+custom_logger.setLevel(logging.INFO)
+custom_logger.addHandler(logging.StreamHandler(sys.stdout))
+custom_logger.propagate = False  # 상위 로거로 넘겨 두 번 찍히는 것을 방지
+
+# uvicorn 기본 액세스 로그는 끄고 아래 미들웨어가 대신 기록 (요청당 2줄 방지)
+logging.getLogger("uvicorn.access").disabled = True
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration = time.perf_counter() - start
+    client = request.client.host if request.client else "-"
+    # 형식: IP - "METHOD PATH HTTP/1.1" 상태코드 응답시간 (Grafana LogQL pattern이 이 형식으로 파싱)
+    custom_logger.info(
+        f'{client} - "{request.method} {request.url.path} HTTP/1.1" '
+        f'{response.status_code} {duration:.3f}s'
+    )
+    return response
 
 
 class TodoIn(BaseModel):
