@@ -125,6 +125,17 @@
         .priority { padding: .2rem .6rem; font-size: .75rem; border-radius: 999px; white-space: nowrap; }
         li button.priority.high { background: var(--danger-bg); color: var(--danger); }
         li button.priority.low { background: var(--card); color: var(--muted); border: 1px solid var(--border); }
+        .due { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+        .due.overdue { color: var(--danger); font-weight: 700; }
+        .due.soon { color: #d97706; font-weight: 700; }
+        input[type="date"] {
+            padding: .6rem .5rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card);
+            color: inherit;
+            font-size: .95rem;
+        }
         select {
             padding: .6rem .5rem;
             border: 1px solid var(--border);
@@ -160,12 +171,14 @@
             <div class="stat"><div class="num" id="stat-total">0</div><div class="label">전체</div></div>
             <div class="stat"><div class="num" id="stat-active">0</div><div class="label">진행중</div></div>
             <div class="stat"><div class="num" id="stat-done">0</div><div class="label">완료</div></div>
+            <div class="stat"><div class="num" id="stat-overdue">0</div><div class="label">기한 초과</div></div>
         </div>
         <div class="progress" role="progressbar" aria-label="완료율" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress"><div id="progress-bar"></div></div>
         <p class="progress-label">완료율 <span id="progress-text">0%</span></p>
         <form id="todo-form">
             <input type="text" id="title" placeholder="제목 (예: 20231234)" required>
             <input type="text" id="description" placeholder="설명 (예: 홍길동)">
+            <input type="date" id="due" aria-label="마감일">
             <select id="priority" aria-label="우선순위">
                 <option value="high">높음</option>
                 <option value="normal" selected>보통</option>
@@ -230,10 +243,27 @@
           return Object.assign(document.createElement("button"), { textContent: label, onclick, className: className || "" });
         }
 
+        // 마감일까지 남은 일수 (오늘=0, 지났으면 음수). 날짜 문자열을 로컬 자정으로 비교
+        function daysLeft(due) {
+          const [y, m, d] = due.split("-").map(Number);
+          const today = new Date(); today.setHours(0, 0, 0, 0);
+          return Math.round((new Date(y, m - 1, d) - today) / 86400000);
+        }
+        const isOverdue = (t) => t.due_date && !t.completed && daysLeft(t.due_date) < 0;
+
+        function dueBadge(todo) {
+          const el = document.createElement("span");
+          const n = daysLeft(todo.due_date);
+          el.className = "due" + (todo.completed ? "" : n < 0 ? " overdue" : n <= 1 ? " soon" : "");
+          el.textContent = `${todo.due_date} (${n === 0 ? "D-Day" : n > 0 ? `D-${n}` : `D+${-n}`})`;
+          return el;
+        }
+
         function updateStats() {
           const done = allTodos.filter((t) => t.completed).length;
           $("stat-total").textContent = allTodos.length;
           $("stat-done").textContent = done;
+          $("stat-overdue").textContent = allTodos.filter(isOverdue).length;
           $("stat-active").textContent = allTodos.length - done;
           const percent = allTodos.length ? Math.round((done / allTodos.length) * 100) : 0;
           $("progress-bar").style.width = `${percent}%`;
@@ -247,7 +277,9 @@
             if (filter === "active" && t.completed) return false;
             if (filter === "done" && !t.completed) return false;
             return !query || `${t.title} ${t.description}`.toLowerCase().includes(query);
-          }).sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);   // 우선순위 높은 순 (같으면 기존 순서)
+          }).sort((a, b) =>
+            PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]            // 우선순위 높은 순
+            || (a.due_date || "9999-12-31").localeCompare(b.due_date || "9999-12-31"));   // 같으면 마감 임박 순
         }
 
         function render() {
@@ -267,7 +299,7 @@
             const li = document.createElement("li");
             const badge = button(PRIORITY_LABEL[todo.priority], () => save(todo.id, { ...todo, priority: NEXT_PRIORITY[todo.priority] }), `priority ${todo.priority}`);
             badge.title = "클릭하면 우선순위가 바뀝니다";
-            li.append(check, badge, text, button("Edit", () => edit(todo)), button("Delete", () => remove(todo.id), "delete"));
+            li.append(check, badge, text, ...(todo.due_date ? [dueBadge(todo)] : []), button("Edit", () => edit(todo)), button("Delete", () => remove(todo.id), "delete"));
             return li;
           }));
         }
@@ -277,7 +309,9 @@
           if (title === null) return;
           const description = prompt("새 설명:", todo.description);
           if (description === null) return;
-          save(todo.id, { ...todo, title: title.trim(), description: description.trim() });
+          const due = prompt("마감일 (YYYY-MM-DD, 비우면 없음):", todo.due_date || "");
+          if (due === null) return;
+          save(todo.id, { ...todo, title: title.trim(), description: description.trim(), due_date: due.trim() || null });
         }
 
         function remove(id) {
@@ -322,7 +356,7 @@
         $("todo-form").onsubmit = (event) => {
           event.preventDefault();
           run("추가", async () => {
-            await api("/todos", "POST", { title: $("title").value.trim(), description: $("description").value.trim(), priority: $("priority").value });
+            await api("/todos", "POST", { title: $("title").value.trim(), description: $("description").value.trim(), priority: $("priority").value, due_date: $("due").value || null });
             event.target.reset();
             await load();
           });

@@ -2,6 +2,7 @@ import json
 import logging
 import sys
 import time
+from datetime import date
 from pathlib import Path
 from typing import Literal
 
@@ -50,6 +51,7 @@ class TodoIn(BaseModel):
     description: str = Field(default="", max_length=500)
     completed: bool = False
     priority: Literal["high", "normal", "low"] = "normal"
+    due_date: date | None = None  # 마감일 (YYYY-MM-DD), 없으면 null
 
 
 class TodoItem(TodoIn):
@@ -88,7 +90,7 @@ def home(request: Request):
 )
 def list_todos():
     # 이전 버전의 데이터에 description·priority가 없어도 화면에서 정상 표시한다.
-    return [{"description": "", "priority": "normal", **item} for item in read_todos()]
+    return [{"description": "", "priority": "normal", "due_date": None, **item} for item in read_todos()]
 
 
 @app.post(
@@ -100,7 +102,7 @@ def list_todos():
 def create_todo(todo: TodoIn):
     todos = read_todos()
     next_id = max((item.get("id", 0) for item in todos), default=0) + 1
-    new_todo = {"id": next_id, **todo.model_dump()}
+    new_todo = {"id": next_id, **todo.model_dump(mode="json")}
     todos.append(new_todo)
     write_todos(todos)
     return new_todo
@@ -118,7 +120,7 @@ def update_todo(todo_id: int, todo: TodoIn):
     todos = read_todos()
     for index, item in enumerate(todos):
         if item.get("id") == todo_id:
-            updated_todo = {"id": todo_id, **todo.model_dump()}
+            updated_todo = {"id": todo_id, **todo.model_dump(mode="json")}
             todos[index] = updated_todo
             write_todos(todos)
             return updated_todo

@@ -147,3 +147,20 @@ def test_get_todos_without_priority_defaults_to_normal():
     response = client.get("/todos")
     assert response.json()[0]["priority"] == "normal"
 
+
+
+def test_due_date_roundtrip():
+    created = client.post("/todos", json={"title": "과제", "due_date": "2026-11-17"}).json()
+    assert created["due_date"] == "2026-11-17"
+    assert client.get("/todos").json()[0]["due_date"] == "2026-11-17"
+    updated = client.put(f"/todos/{created['id']}", json={"title": "과제", "due_date": None}).json()
+    assert updated["due_date"] is None
+
+
+def test_due_date_invalid_rejected():
+    assert client.post("/todos", json={"title": "x", "due_date": "내일"}).status_code == 422
+
+
+def test_due_date_missing_in_old_data():
+    write_todos([{"id": 1, "title": "old", "description": "", "completed": False}])
+    assert client.get("/todos").json()[0]["due_date"] is None
